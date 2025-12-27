@@ -1,10 +1,12 @@
 import streamlit as st
 import os
+
 from ingest_runtime import ingest_file
 from rag import ask_question
 from security import sanitize_query, redact_sensitive_data
 from cleanup import cleanup_old_files
 
+# ---------- Page Config ----------
 st.set_page_config(
     page_title="Enterprise Knowledge Bot",
     layout="wide"
@@ -33,6 +35,7 @@ if uploaded_file:
     os.makedirs(doc_vector_dir, exist_ok=True)
 
     file_path = os.path.join(doc_upload_dir, uploaded_file.name)
+
     with open(file_path, "wb") as f:
         f.write(uploaded_file.getbuffer())
 
@@ -58,14 +61,25 @@ if selected_doc:
                 selected_doc
             )
 
-            answer = redact_sensitive_data(response["answer"])
+            # 🔥 SAFE ANSWER HANDLING (FIXED)
+            raw_answer = response.get("answer", "").strip()
 
+            # Apply redaction
+            answer = redact_sensitive_data(raw_answer)
+
+            # Final fallback (VERY IMPORTANT)
+            if not answer or not answer.strip():
+                answer = "I couldn't generate an answer from this document."
+
+            # ---------- Show Answer ----------
             with st.chat_message("assistant"):
                 st.write(answer)
 
+            # ---------- Show Sources ----------
             with st.expander("📎 Sources"):
-                for src in response["source_documents"]:
-                    st.write(src.metadata.get("source", "Unknown"))
+                for src in response.get("source_documents", []):
+                    st.write(src.metadata.get("source", "Unknown source"))
+
 else:
     st.info("Upload and select a document to start chatting")
 
