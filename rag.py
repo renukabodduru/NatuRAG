@@ -1,15 +1,32 @@
-from langchain.vectorstores import Chroma
-from langchain.embeddings import OllamaEmbeddings
-from langchain.llms import Ollama
-from langchain.chains import ConversationalRetrievalChain
-from memory import get_memory
+from langchain_community.vectorstores import Chroma
+from langchain_community.embeddings import OllamaEmbeddings
+from langchain_community.llms import Ollama
+
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
 
 embeddings = OllamaEmbeddings(model="nomic-embed-text")
 
 llm = Ollama(
-    model="llama3",
+    model="llama3.2:3b",
     temperature=0.1
 )
+
+prompt = ChatPromptTemplate.from_template("""
+You are a helpful assistant.
+
+Use the context below to answer the question.
+If the answer is not present, say:
+"I don't know based on the document."
+
+Context:
+{context}
+
+Question:
+{question}
+
+Answer:
+""")
 
 def ask_question(query: str, persist_dir: str, doc_id: str):
     db = Chroma(
@@ -17,13 +34,39 @@ def ask_question(query: str, persist_dir: str, doc_id: str):
         embedding_function=embeddings
     )
 
-    memory = get_memory(doc_id)
+    retriever = db.as_retriever(
+    search_type="mmr",
+    search_kwargs={
+        "k": 4,
+        "fetch_k": 10
+    }
+)
 
-    qa = ConversationalRetrievalChain.from_llm(
-        llm=llm,
-        retriever=db.as_retriever(search_kwargs={"k": 3}),
-        memory=memory,
-        return_source_documents=True
-    )
+    docs = retriever.invoke(query)
 
-    return qa({"question": query})
+    if not docs:
+        return {
+            "answer": "No relevant information found in the document.",
+            "source_documents": []
+        }
+
+    MAX_CHARS = 3000
+    context = ""
+    for d in docs:
+        if len(context) < MAX_CHARS:
+            context += d.page_content + "\n\n"
+
+    chain = prompt | llm | StrOutputParser()
+
+    answer = chain.invoke({
+        "context": context,
+        "question": query
+    })
+
+    if not answer.strip():
+        answer = "I couldn't generate an answer from this document."
+
+    return {
+        "answer": answer,
+        "source_documents": docs
+    }
