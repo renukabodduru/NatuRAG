@@ -37,6 +37,12 @@ if "vectorstore" not in st.session_state:
 def build_vectorstore(pdf_bytes):
     with open("temp.pdf", "wb") as f:
         f.write(pdf_bytes)
+        try:
+    docs = loader.load()
+except Exception as e:
+    st.error("This PDF is encrypted or unsupported.")
+    st.stop()
+
 
     loader = PyPDFLoader("temp.pdf")
     docs = loader.load()
@@ -106,3 +112,4 @@ if query:
 
     st.session_state.messages.append({"role": "assistant", "content": answer})
     st.chat_message("assistant").write(answer)
+
