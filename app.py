@@ -6,7 +6,8 @@ from langchain_groq import ChatGroq
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_community.document_loaders import PyPDFLoader
+from langchain_community.document_loaders import PyMuPDFLoader
+
 
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
@@ -44,7 +45,7 @@ except Exception as e:
     st.stop()
 
 
-    loader = PyPDFLoader("temp.pdf")
+    loader = PyMuPDFLoader("temp.pdf")
     docs = loader.load()
 
     splitter = RecursiveCharacterTextSplitter(
@@ -112,4 +113,5 @@ if query:
 
     st.session_state.messages.append({"role": "assistant", "content": answer})
     st.chat_message("assistant").write(answer)
+
 
