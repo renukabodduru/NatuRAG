@@ -1,6 +1,10 @@
 streamlit
+python-dotenv
 langchain
-chromadb
+langchain-core
+langchain-community
+langchain-groq
+sentence-transformers
+faiss-cpu
 pypdf
-python-docx
-unstructured
+#installations needed for running this model
