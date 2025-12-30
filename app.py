@@ -17,7 +17,7 @@ load_dotenv()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 # Streamlit config
-st.set_page_config(page_title="Fast PDF Chatbot", layout="wide")
+st.set_page_config(page_title="Fast PDF Chatbot-NatuRAG", layout="wide")
 st.title("⚡ Fast PDF Chatbot")
 
 # LLM
@@ -108,3 +108,4 @@ if query:
 
     st.session_state.messages.append({"role": "assistant", "content": answer})
     st.chat_message("assistant").write(answer)
+
