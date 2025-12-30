@@ -81,6 +81,7 @@ if query:
                 """
                 Answer the question using ONLY the context below.
                 If the answer is not in the context, say "I don't know".
+                else, provide a concise and accurate answer.
 
                 Context:
                 {context}
@@ -108,4 +109,5 @@ if query:
 
     st.session_state.messages.append({"role": "assistant", "content": answer})
     st.chat_message("assistant").write(answer)
+
 
