@@ -1,4 +1,5 @@
 import os
+import tempfile 
 import streamlit as st
 from dotenv import load_dotenv
 
@@ -6,7 +7,7 @@ from langchain_groq import ChatGroq
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
-import tempfile 
+
 from
 langchain_community.document_loaders 
 import PyPDFLoader
@@ -111,4 +112,5 @@ if query:
 
     st.session_state.messages.append({"role": "assistant", "content": answer})
     st.chat_message("assistant").write(answer)
+
 
