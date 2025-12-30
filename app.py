@@ -6,8 +6,7 @@ from langchain_groq import ChatGroq
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_community.document_loaders import PyMuPDFLoader
-
+import tempfile from langchain_community.document_loaders import PyPDFLoader
 
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
@@ -36,17 +35,13 @@ if "vectorstore" not in st.session_state:
 
 @st.cache_resource(show_spinner=False)
 def build_vectorstore(pdf_bytes):
-    with open("temp.pdf", "wb") as f:
-        f.write(pdf_bytes)
-        try:
-    docs = loader.load()
-except Exception as e:
-    st.error("This PDF is encrypted or unsupported.")
-    st.stop()
+    with tempfile.NamedTemporaryFile(delete=False,suffix=".pdf") as tmp:
+        tmp.write(pdf_bytes)
+        tmp_path=tmp.name
 
-
-    loader = PyMuPDFLoader("temp.pdf")
+    loader = PyPDFLoader(tmp_path)
     docs = loader.load()
+    
 
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=500,
@@ -113,5 +108,3 @@ if query:
 
     st.session_state.messages.append({"role": "assistant", "content": answer})
     st.chat_message("assistant").write(answer)
-
-
