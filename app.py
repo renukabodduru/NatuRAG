@@ -37,13 +37,25 @@ if "vectorstore" not in st.session_state:
 
 @st.cache_resource(show_spinner=False)
 def build_vectorstore(pdf_bytes):
-    with tempfile.NamedTemporaryFile(delete=False,suffix=".pdf") as tmp:
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
         tmp.write(pdf_bytes)
-        tmp_path=tmp.name
+        tmp_path = tmp.name
 
-    loader = PyPDFLoader(tmp_path)
-    docs = loader.load()
-    
+    try:
+        loader = PyPDFLoader(tmp_path, password="")
+        docs = loader.load()
+    except Exception:
+        from pypdf import PdfReader
+        reader = PdfReader(tmp_path)
+        docs = []
+        for page in reader.pages:
+            docs.append(
+                {
+                    "page_content": page.extract_text() or "",
+                    "metadata": {}
+                }
+            )
+
 
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=500,
@@ -110,6 +122,7 @@ if query:
 
     st.session_state.messages.append({"role": "assistant", "content": answer})
     st.chat_message("assistant").write(answer)
+
 
 
 
