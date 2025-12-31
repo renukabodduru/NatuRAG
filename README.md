@@ -3,6 +3,8 @@ This project is a RAG based chatbot which efficiently answers for your questions
 
 
 This project is deployed in the streamlit cloud ,so you can access this from your mobile or destkop using link https://naturag-ksn9e8fakqusknlc76qrr9.streamlit.app/
+Instructions:
+Install all the requirements and create an environment for running the LLM's
 
 Best suits for--->
 Companies,
