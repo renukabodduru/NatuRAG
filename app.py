@@ -12,43 +12,51 @@ from langchain_community.document_loaders import PyPDFium2Loader
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 
-# Load environment variables
+# --------------------------------------------------
+# ENV & STREAMLIT CONFIG
+# --------------------------------------------------
 load_dotenv()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-# Streamlit config
-st.set_page_config(page_title="Fast PDF Chatbot-NatuRAG", layout="wide")
-st.title("⚡ Fast PDF Chatbot")
+st.set_page_config(page_title="Fast PDF Chatbot", layout="wide")
+st.title("⚡ Fast PDF Chatbot – NatuRAG")
 
+# --------------------------------------------------
 # LLM
+# --------------------------------------------------
 llm = ChatGroq(
     model="llama-3.1-8b-instant",
-    temperature=0.3,
+    temperature=0.4,
     api_key=GROQ_API_KEY
 )
 
-# Session state
+# --------------------------------------------------
+# SESSION STATE
+# --------------------------------------------------
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
 if "vectorstore" not in st.session_state:
     st.session_state.vectorstore = None
 
+# --------------------------------------------------
+# BUILD VECTORSTORE
+# --------------------------------------------------
 @st.cache_resource(show_spinner=False)
 def build_vectorstore(pdf_bytes):
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
-        tmp_file.write(pdf_bytes)
-        tmp_file_path = tmp_file.name
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+        tmp.write(pdf_bytes)
+        pdf_path = tmp.name
 
-    loader = PyPDFium2Loader(tmp_file_path)
-    docs = loader.load()
+    loader = PyPDFium2Loader(pdf_path)
+    documents = loader.load()
 
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=500,
         chunk_overlap=50
     )
 
-    chunks = splitter.split_documents(docs)
+    chunks = splitter.split_documents(documents)
 
     embeddings = HuggingFaceEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2"
@@ -56,58 +64,74 @@ def build_vectorstore(pdf_bytes):
 
     return FAISS.from_documents(chunks, embeddings)
 
-# Sidebar
-st.sidebar.title("Upload PDF")
-pdf = st.sidebar.file_uploader("PDF file", type="pdf")
+# --------------------------------------------------
+# SIDEBAR – PDF UPLOAD
+# --------------------------------------------------
+st.sidebar.title("📄 Upload PDF")
+pdf = st.sidebar.file_uploader("Choose a PDF file", type="pdf")
 
 if pdf:
     with st.spinner("Processing PDF..."):
         st.session_state.vectorstore = build_vectorstore(pdf.read())
-    st.sidebar.success("PDF ready")
+    st.sidebar.success("PDF uploaded successfully!")
 
-# Chat history
+# --------------------------------------------------
+# CHAT HISTORY
+# --------------------------------------------------
 for msg in st.session_state.messages:
     st.chat_message(msg["role"]).write(msg["content"])
 
-query = st.chat_input("Ask a question")
+# --------------------------------------------------
+# BOTTOM-STABLE CHAT INPUT
+# --------------------------------------------------
+query = st.chat_input("Ask a question…")
 
-if query:
-    st.session_state.messages.append({"role": "user", "content": query})
+def format_docs(docs):
+    return "\n\n".join(doc.page_content for doc in docs)
 
-    with st.spinner("Thinking..."):
-        if st.session_state.vectorstore:
+# --------------------------------------------------
+# CHAT LOGIC (SMART SWITCH)
+# --------------------------------------------------
+if query and query.strip():
 
-            prompt = ChatPromptTemplate.from_template(
-                """
-                Answer the question using ONLY the context below.
-                If the answer is not in the context, say "I don't know".
-                else, provide a concise and accurate answer.
-
-                Context:
-                {context}
-
-                Question:
-                {question}
-                """
-            )
-
-            retriever = st.session_state.vectorstore.as_retriever(search_kwargs={"k": 3})
-
-            chain = (
-                {
-                    "context": retriever,
-                    "question": RunnablePassthrough()
-                }
-                | prompt
-                | llm
-            )
-
-            answer = chain.invoke(query).content
-
-        else:
+    # 🟢 BEFORE PDF → NATURAL CHAT
+    if st.session_state.vectorstore is None:
+        with st.spinner("Thinking..."):
             answer = llm.invoke(query).content
 
-    st.session_state.messages.append({"role": "assistant", "content": answer})
+    # 🔵 AFTER PDF → RAG MODE
+    else:
+        retriever = st.session_state.vectorstore.as_retriever(
+            search_kwargs={"k": 3}
+        )
+
+        prompt = ChatPromptTemplate.from_template(
+            """
+            Answer the question using ONLY the context below.
+            If the answer is not in the context, say "I don't know".
+
+            Context:
+            {context}
+
+            Question:
+            {question}
+            """
+        )
+
+        chain = (
+            {
+                "context": retriever | format_docs,
+                "question": RunnablePassthrough()
+            }
+            | prompt
+            | llm
+        )
+
+        with st.spinner("Searching document..."):
+            answer = chain.invoke(query).content
+
+    # SAVE & DISPLAY MESSAGE
+    st.session_state.messages.append(
+        {"role": "assistant", "content": answer}
+    )
     st.chat_message("assistant").write(answer)
-
-
