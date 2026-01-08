@@ -19,7 +19,7 @@ load_dotenv()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 st.set_page_config(page_title="Fast PDF Chatbot", layout="wide")
-st.title("⚡ Fast PDF Chatbot – NatuRAG")
+st.title("Chatbot – NatuRAG")
 
 # --------------------------------------------------
 # LLM
@@ -135,3 +135,4 @@ if query and query.strip():
         {"role": "assistant", "content": answer}
     )
     st.chat_message("assistant").write(answer)
+
